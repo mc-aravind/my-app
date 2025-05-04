@@ -73,6 +73,30 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Add ECS Task Execution Role if not exists
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "ecs-task-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Attach ECS Task Execution Policy
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
 # Network Configuration
 resource "aws_default_vpc" "default" {}
 
@@ -140,7 +164,7 @@ resource "aws_iam_role" "codepipeline_role" {
   })
 }
 
-# CodePipeline policy
+# Update CodePipeline IAM Role Policy
 resource "aws_iam_role_policy" "codepipeline_policy" {
   name = "react-app-codepipeline-policy"
   role = aws_iam_role.codepipeline_role.id
@@ -153,9 +177,10 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         Action = [
           "s3:*",
           "ecr:*",
-          "ecs:*",
+          "codestar-connections:*",
           "codebuild:*",
-          "codestar-connections:*"
+          "ecs:*",
+          "iam:PassRole"
         ]
         Resource = "*"
       }
