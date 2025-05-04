@@ -9,12 +9,15 @@ phases:
   
   build:
     commands:
+      - echo Building Docker image...
       - docker build -t $ECR_REPOSITORY_URI:$IMAGE_TAG .
   
   post_build:
     commands:
+      - echo Pushing Docker image...
       - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
       - printf '{"ImageURI":"%s"}' $ECR_REPOSITORY_URI:$IMAGE_TAG > imageDetail.json
+      - cat imageDetail.json
 
 artifacts:
   files:

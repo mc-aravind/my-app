@@ -163,6 +163,73 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
   })
 }
 
+# Add CodeBuild Role and Policy
+resource "aws_iam_role" "codebuild_role" {
+  name = "react-app-codebuild-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "codebuild.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "codebuild_policy" {
+  role = aws_iam_role.codebuild_role.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Resource = ["*"]
+        Action = [
+          "logs:*",
+          "ecr:*",
+          "s3:*",
+          "ecs:*"
+        ]
+      }
+    ]
+  })
+}
+
+# Add CodeBuild Project
+resource "aws_codebuild_project" "app_build" {
+  name         = "react-app-build"
+  description  = "Builds React app Docker image"
+  service_role = aws_iam_role.codebuild_role.arn
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_SMALL"
+    image                      = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                       = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+    privileged_mode            = true
+
+    environment_variable {
+      name  = "ECR_REPOSITORY_URI"
+      value = aws_ecr_repository.app.repository_url
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec.yml"
+  }
+}
+
 # GitHub connection
 resource "aws_codestarconnections_connection" "github" {
   name          = "react-app-github"
@@ -199,6 +266,24 @@ resource "aws_codepipeline" "app_pipeline" {
   }
 
   stage {
+    name = "Build"
+
+    action {
+      name             = "Build"
+      category         = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts  = ["source_output"]
+      output_artifacts = ["build_output"]
+      version         = "1"
+
+      configuration = {
+        ProjectName = aws_codebuild_project.app_build.name
+      }
+    }
+  }
+
+  stage {
     name = "Deploy"
 
     action {
@@ -206,7 +291,7 @@ resource "aws_codepipeline" "app_pipeline" {
       category        = "Deploy"
       owner           = "AWS"
       provider        = "ECS"
-      input_artifacts = ["source_output"]
+      input_artifacts = ["build_output"]
       version         = "1"
 
       configuration = {
