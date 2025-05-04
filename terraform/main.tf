@@ -260,7 +260,7 @@ resource "aws_codepipeline" "app_pipeline" {
       configuration = {
         ConnectionArn    = aws_codestarconnections_connection.github.arn
         FullRepositoryId = "mc-aravind/my-app"
-        BranchName      = "docker-container-ecr"  # Updated branch name
+        BranchName      = "feature/docker-container-ecr"  # Exact branch name
       }
     }
   }
