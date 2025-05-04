@@ -16,11 +16,10 @@ phases:
     commands:
       - echo Pushing Docker image...
       - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
-      - printf '{"ImageURI":"%s"}' $ECR_REPOSITORY_URI:$IMAGE_TAG > imageDetail.json
-      - cat imageDetail.json
+      - echo Writing image definitions...
+      - printf '[{"name":"react-app","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - cat imagedefinitions.json
 
 artifacts:
   files:
-    - imageDetail.json
-    - appspec.yaml
-    - taskdef.json
+    - imagedefinitions.json
