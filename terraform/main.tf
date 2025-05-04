@@ -281,11 +281,13 @@ resource "aws_codepipeline" "app_pipeline" {
       provider         = "CodeStarSourceConnection"
       version          = "1"
       output_artifacts = ["source_output"]
+      namespace        = "SourceVariables"
 
       configuration = {
         ConnectionArn    = aws_codestarconnections_connection.github.arn
         FullRepositoryId = "mc-aravind/my-app"
-        BranchName      = "feature/docker-container-ecr"  # Exact branch name
+        BranchName      = "feature/docker-container-ecr"
+        DetectChanges   = true
       }
     }
   }

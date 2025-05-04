@@ -92,56 +92,92 @@ export default tseslint.config({
 })
 ```
 
-# React App Docker ECS Deployment
+# React App Deployment with AWS ECS and CodePipeline
 
-This project demonstrates deploying a React application to AWS ECS using Docker containers and GitHub Actions for CI/CD.
+This guide explains how to deploy a React application using AWS ECS, CodePipeline, and Docker.
+
+## Prerequisites
+
+- AWS Account (Free Tier eligible)
+- GitHub Account
+- Node.js installed
+- Docker Desktop installed
+- AWS CLI installed
+- Terraform installed
 
 ## Project Structure
 
 ```
 .
+├── terraform/
+│   ├── main.tf                # Main Terraform configuration
+│   └── .terraform/            # Terraform plugins and modules
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml      # GitHub Actions workflow
-├── terraform/
-│   ├── ecr.tf             # ECR repository configuration
-│   ├── ecs.tf             # ECS cluster and service configuration
-│   └── main.tf            # Core infrastructure
-├── Dockerfile             # Container configuration
-├── nginx.conf            # Nginx server configuration
-└── README.md             # This file
+│       └── deploy.yml         # GitHub Actions workflow
+├── src/                       # React application source code
+├── Dockerfile                 # Docker configuration
+├── buildspec.yml             # AWS CodeBuild specification
+└── README.md                 # This file
 ```
 
-## Prerequisites
+## Step 1: Local Setup
 
-- AWS Account
-- GitHub Account
-- Node.js 18+
-- Docker Desktop
-- AWS CLI
-- Terraform
+1. Clone the repository:
+```powershell
+git clone https://github.com/mc-aravind/my-app.git
+cd my-app
+```
 
-## Local Development
+2. Create a new branch:
+```powershell
+git checkout -b feature/docker-container-ecr
+```
 
-1. Install dependencies:
-```bash
+3. Install dependencies:
+```powershell
 npm install
 ```
 
-2. Start development server:
-```bash
-npm run dev
+## Step 2: Docker Configuration
+
+1. Create Dockerfile:
+```dockerfile
+FROM node:18-alpine as build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 ```
 
-## Docker Build
-
-Build the container locally:
-```bash
-docker build -t react-app .
-docker run -p 80:80 react-app
+2. Create buildspec.yml:
+```yaml
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+  build:
+    commands:
+      - docker build -t $ECR_REPOSITORY_URI:$IMAGE_TAG .
+  post_build:
+    commands:
+      - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+      - printf '[{"name":"react-app","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+artifacts:
+  files:
+    - imagedefinitions.json
 ```
 
-## Infrastructure Setup
+## Step 3: AWS Infrastructure Setup
 
 1. Initialize Terraform:
 ```powershell
@@ -149,78 +185,92 @@ cd terraform
 terraform init
 ```
 
-2. Apply infrastructure:
+2. Apply Terraform configuration:
 ```powershell
 terraform apply -auto-approve
 ```
 
-## GitHub Actions Configuration
+3. Note the outputs:
+- ECR Repository URL
+- CodePipeline URL
+- GitHub Connection URL
 
-Required secrets in GitHub repository:
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+## Step 4: GitHub Connection Setup
 
-## Deployment
+1. Open the GitHub Connection URL from Terraform outputs
+2. Click "Update pending connection"
+3. Complete GitHub authorization
+4. Select your repository
 
-Push to the `feature/docker-container-ecr` branch to trigger deployment:
-```bash
+## Step 5: Pipeline Configuration
+
+The pipeline consists of three stages:
+1. Source: Pulls code from GitHub
+2. Build: Creates Docker image and pushes to ECR
+3. Deploy: Deploys container to ECS
+
+## Step 6: Deployment
+
+1. Commit and push your changes:
+```powershell
+git add .
+git commit -m "Initial container setup"
 git push origin feature/docker-container-ecr
 ```
 
-The workflow will:
-1. Build the React application
-2. Create Docker image
-3. Push to AWS ECR
-4. Deploy to ECS
+2. Monitor the pipeline:
+- Open AWS Console
+- Go to CodePipeline
+- Watch the pipeline progress
 
-## Infrastructure Components
+## Step 7: Verify Deployment
 
-- **ECR Repository**: Stores Docker images
-- **ECS Cluster**: Runs containerized application
-- **Application Load Balancer**: Routes traffic
-- **CloudWatch Logs**: Application monitoring
-
-## Security Groups
-
-- **Load Balancer**: Allows inbound HTTP (port 80)
-- **ECS Tasks**: Allows traffic from ALB
-
-## Monitoring
-
-Access logs in CloudWatch:
 1. Open AWS Console
-2. Navigate to CloudWatch > Log Groups
-3. Find `/ecs/react-app`
+2. Navigate to ECS → Clusters → react-app-cluster
+3. Click on the running task
+4. Find the public IP
+5. Access your app at http://<public-ip>
+
+## Common Issues and Solutions
+
+1. **Pipeline Source Error**:
+   - Verify GitHub connection is completed
+   - Check branch name matches exactly
+
+2. **Build Error**:
+   - Verify Dockerfile is in repository root
+   - Check buildspec.yml syntax
+
+3. **Deploy Error**:
+   - Check imagedefinitions.json is created
+   - Verify ECS service is running
 
 ## Cleanup
 
-Remove all resources:
+To avoid charges, remove all resources:
 ```powershell
 terraform destroy -auto-approve
 ```
 
-## Contributing
+## AWS Free Tier Usage
 
-1. Create a feature branch
-2. Make changes
-3. Submit pull request
+This setup uses:
+- ECR: 500MB storage per month
+- ECS: Fargate minimal configuration
+- CloudWatch: 5GB logs per month
+- CodePipeline: One active pipeline
 
-## Troubleshooting
+Monitor AWS Billing Dashboard to avoid unexpected charges.
 
-1. **Container not starting**:
-   - Check CloudWatch logs
-   - Verify security group rules
-   - Check task definition
+## Additional Resources
 
-2. **Deploy failing**:
-   - Verify GitHub secrets
-   - Check Actions logs
-   - Validate ECR permissions
+- [AWS ECS Documentation](https://docs.aws.amazon.com/ecs)
+- [AWS CodePipeline Documentation](https://docs.aws.amazon.com/codepipeline)
+- [Terraform Documentation](https://www.terraform.io/docs)
 
-## License
+## Support
 
-MIT
-
-## Author
-
-Your Name
+For issues and questions:
+1. Check AWS CloudWatch logs
+2. Review pipeline execution details
+3. Check ECS task status
