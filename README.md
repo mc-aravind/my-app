@@ -91,3 +91,136 @@ export default tseslint.config({
   },
 })
 ```
+
+# React App Docker ECS Deployment
+
+This project demonstrates deploying a React application to AWS ECS using Docker containers and GitHub Actions for CI/CD.
+
+## Project Structure
+
+```
+.
+├── .github/
+│   └── workflows/
+│       └── deploy.yml      # GitHub Actions workflow
+├── terraform/
+│   ├── ecr.tf             # ECR repository configuration
+│   ├── ecs.tf             # ECS cluster and service configuration
+│   └── main.tf            # Core infrastructure
+├── Dockerfile             # Container configuration
+├── nginx.conf            # Nginx server configuration
+└── README.md             # This file
+```
+
+## Prerequisites
+
+- AWS Account
+- GitHub Account
+- Node.js 18+
+- Docker Desktop
+- AWS CLI
+- Terraform
+
+## Local Development
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Start development server:
+```bash
+npm run dev
+```
+
+## Docker Build
+
+Build the container locally:
+```bash
+docker build -t react-app .
+docker run -p 80:80 react-app
+```
+
+## Infrastructure Setup
+
+1. Initialize Terraform:
+```powershell
+cd terraform
+terraform init
+```
+
+2. Apply infrastructure:
+```powershell
+terraform apply -auto-approve
+```
+
+## GitHub Actions Configuration
+
+Required secrets in GitHub repository:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+## Deployment
+
+Push to the `feature/docker-container-ecr` branch to trigger deployment:
+```bash
+git push origin feature/docker-container-ecr
+```
+
+The workflow will:
+1. Build the React application
+2. Create Docker image
+3. Push to AWS ECR
+4. Deploy to ECS
+
+## Infrastructure Components
+
+- **ECR Repository**: Stores Docker images
+- **ECS Cluster**: Runs containerized application
+- **Application Load Balancer**: Routes traffic
+- **CloudWatch Logs**: Application monitoring
+
+## Security Groups
+
+- **Load Balancer**: Allows inbound HTTP (port 80)
+- **ECS Tasks**: Allows traffic from ALB
+
+## Monitoring
+
+Access logs in CloudWatch:
+1. Open AWS Console
+2. Navigate to CloudWatch > Log Groups
+3. Find `/ecs/react-app`
+
+## Cleanup
+
+Remove all resources:
+```powershell
+terraform destroy -auto-approve
+```
+
+## Contributing
+
+1. Create a feature branch
+2. Make changes
+3. Submit pull request
+
+## Troubleshooting
+
+1. **Container not starting**:
+   - Check CloudWatch logs
+   - Verify security group rules
+   - Check task definition
+
+2. **Deploy failing**:
+   - Verify GitHub secrets
+   - Check Actions logs
+   - Validate ECR permissions
+
+## License
+
+MIT
+
+## Author
+
+Your Name

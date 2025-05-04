@@ -178,3 +178,7 @@ resource "aws_security_group" "ecs_tasks" {
 output "task_public_ip" {
   value = "Wait for the task to start, then find the public IP in the AWS Console under ECS > Tasks"
 }
+
+output "alb_url" {
+  value = "http://${aws_lb.app.dns_name}"
+}
